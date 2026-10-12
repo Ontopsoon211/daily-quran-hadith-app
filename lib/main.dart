@@ -1,5 +1,3 @@
-import 'dart:convert';
-
 import 'package:daily_quran_hadith/models/models.dart';
 import 'package:daily_quran_hadith/providers/favorites_provider.dart';
 import 'package:daily_quran_hadith/providers/theme_provider.dart';
@@ -7,11 +5,11 @@ import 'package:daily_quran_hadith/screens/detail_screen.dart';
 import 'package:daily_quran_hadith/services/notification_service.dart';
 import 'package:daily_quran_hadith/services/quran_service.dart';
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
-Future<void> main() async {\n  WidgetsFlutterBinding.ensureInitialized();
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await NotificationService().initialize();
   runApp(
     MultiProvider(
       providers: [
@@ -49,8 +47,6 @@ class MainShell extends StatefulWidget {
 }
 
 class _MainShellState extends State<MainShell> {
-  int _currentIndex = 0;
-
   final List<Widget> _pages = const [
     HomeScreen(),
     QuranScreen(),
@@ -59,28 +55,24 @@ class _MainShellState extends State<MainShell> {
     SettingsScreen(),
   ];
 
+  int _currentIndex = 0;
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: AnimatedSwitcher(
-        duration: const Duration(milliseconds: 250),
-        child: _pages[_currentIndex],
+      body: IndexedStack(
+        index: _currentIndex,
+        children: _pages,
       ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _currentIndex,
-        onDestinationSelected: (index) {
-          setState(() => _currentIndex = index);
-        },
+        onDestinationSelected: (index) => setState(() => _currentIndex = index),
         destinations: const [
           NavigationDestination(icon: Icon(Icons.home_rounded), label: 'Home'),
-          NavigationDestination(
-              icon: Icon(Icons.menu_book_rounded), label: 'Quran'),
-          NavigationDestination(
-              icon: Icon(Icons.auto_stories_rounded), label: 'Hadith'),
-          NavigationDestination(
-              icon: Icon(Icons.bookmark_rounded), label: 'Favorites'),
-          NavigationDestination(
-              icon: Icon(Icons.settings_rounded), label: 'Settings'),
+          NavigationDestination(icon: Icon(Icons.menu_book_rounded), label: 'Quran'),
+          NavigationDestination(icon: Icon(Icons.auto_stories_rounded), label: 'Hadith'),
+          NavigationDestination(icon: Icon(Icons.bookmark_rounded), label: 'Favorites'),
+          NavigationDestination(icon: Icon(Icons.settings_rounded), label: 'Settings'),
         ],
       ),
     );
@@ -95,7 +87,7 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  bool _isLoading = false;
+  bool _loading = false;
   QuranVerse? _todayVerse;
   HadithItem? _todayHadith;
 
@@ -106,7 +98,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _loadDailyContent() async {
-    setState(() => _isLoading = true);
+    setState(() => _loading = true);
 
     final verse = await QuranService.getRandomAyah();
     final hadith = const HadithItem(
@@ -124,18 +116,16 @@ class _HomeScreenState extends State<HomeScreen> {
             ayah: '67:2',
             arabic: 'ٱللّٰهِ ۚ',
             translation: 'Allah is the Creator of all things.',
-            note:
-                'This reminds us to reflect on Allah's wisdom and the greatness of His creation.',
+            note: 'This reminds us to reflect on Allah\'s wisdom and the greatness of His creation.',
           );
       _todayHadith = hadith;
-      _isLoading = false;
+      _loading = false;
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return SafeArea(
       child: RefreshIndicator(
@@ -143,41 +133,12 @@ class _HomeScreenState extends State<HomeScreen> {
         child: ListView(
           padding: const EdgeInsets.all(20),
           children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Daily guidance',
-                      style: TextStyle(
-                        fontSize: 12,
-                        letterSpacing: 1.4,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFFB98A3A),
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      'Today's reflection',
-                      style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                            fontWeight: FontWeight.w800,
-                          ),
-                    ),
-                  ],
-                ),
-                IconButton(
-                  onPressed: _loadDailyContent,
-                  icon: const Icon(Icons.refresh_rounded),
-                ),
-              ],
-            ),
+            _headerRow(),
             const SizedBox(height: 18),
-            if (_isLoading)
+            if (_loading)
               const Center(
                 child: Padding(
-                  padding: EdgeInsets.all(30),
+                  padding: EdgeInsets.symmetric(vertical: 32),
                   child: CircularProgressIndicator(),
                 ),
               )
@@ -192,12 +153,11 @@ class _HomeScreenState extends State<HomeScreen> {
                     Text(
                       '${_todayVerse?.surah} ${_todayVerse?.ayah}',
                       style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
                         color: Color(0xFFB98A3A),
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 10),
                     Text(
                       _todayVerse?.arabic ?? '',
                       textDirection: TextDirection.rtl,
@@ -208,21 +168,22 @@ class _HomeScreenState extends State<HomeScreen> {
                         fontWeight: FontWeight.w700,
                       ),
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 10),
                     Text(
                       '"${_todayVerse?.translation ?? ''}"',
                       style: TextStyle(
                         fontSize: 15,
-                        height: 1.6,
                         color: isDark ? Colors.white70 : Colors.black87,
+                        height: 1.6,
                       ),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 10),
                     Text(
                       _todayVerse?.note ?? '',
                       style: TextStyle(
                         fontSize: 13,
                         color: isDark ? Colors.white60 : Colors.black54,
+                        height: 1.5,
                       ),
                     ),
                   ],
@@ -239,12 +200,11 @@ class _HomeScreenState extends State<HomeScreen> {
                     Text(
                       _todayHadith?.title ?? 'Hadith',
                       style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
                         color: Color(0xFFB98A3A),
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 10),
                     Text(
                       _todayHadith?.arabic ?? '',
                       textDirection: TextDirection.rtl,
@@ -255,13 +215,13 @@ class _HomeScreenState extends State<HomeScreen> {
                         fontWeight: FontWeight.w700,
                       ),
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 10),
                     Text(
                       '"${_todayHadith?.english ?? ''}"',
                       style: TextStyle(
                         fontSize: 15,
-                        height: 1.6,
                         color: isDark ? Colors.white70 : Colors.black87,
+                        height: 1.6,
                       ),
                     ),
                     const SizedBox(height: 8),
@@ -276,7 +236,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   ],
                 ),
               ),
-              const SizedBox(height: 22),
+              const SizedBox(height: 20),
               Text(
                 'Reflection topics',
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
@@ -301,6 +261,39 @@ class _HomeScreenState extends State<HomeScreen> {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _headerRow() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Daily guidance',
+              style: TextStyle(
+                fontSize: 12,
+                letterSpacing: 1.4,
+                color: Color(0xFFB98A3A),
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'Today\'s reflection',
+              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.w800,
+                  ),
+            ),
+          ],
+        ),
+        IconButton(
+          onPressed: _loadDailyContent,
+          icon: const Icon(Icons.refresh_rounded),
+        ),
+      ],
     );
   }
 
@@ -396,7 +389,7 @@ class _QuranScreenState extends State<QuranScreen> {
       ayah: '67:1',
       arabic: 'تَبٰرَكَ ٱلَّذِي بِيَدِهِ ٱلْمُلْكُ',
       translation: 'Blessed is He in whose hand is dominion.',
-      note: 'A reminder of Allah's sovereign power.',
+      note: 'A reminder of Allah\'s sovereign power.',
     ),
     QuranVerse(
       surah: 'Al-Ikhlas',
